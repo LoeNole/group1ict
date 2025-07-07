@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Seat Planner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-image: url('pngtree-geometric-green-gold-abstract-brush-background-picture-image_1455476.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+        }
+        
+        h1, h2 {
+            color: #2c3e50;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .input-section, .constraints-section, .classroom-section {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        textarea, input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        
+        button {
+            background-color: #9ACD32; /* Yellow-Green buttons */
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #7CB342;
+        }
+        
+        .seat {
+            width: 80px;
+            height: 80px;
+            border: 1px solid #ddd;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .seat:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .classroom-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .constraint-pair {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .constraint-pair select {
+            flex: 1;
+            padding: 8px;
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Classroom Seat Planner</h1>
+    <p style="background-color: rgba(255, 255, 255, 0.7); padding: 5px; border-radius: 5px; display: inline-block;">A fair and randomized seating arrangement tool for teachers</p>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>Student List</h2>
+            <textarea id="studentNames" rows="10" placeholder="Enter student names, one per line"></textarea>
+            <button id="loadDemo">Load Demo Class</button>
+        </div>
+        
+        <div class="constraints-section">
+            <h2>Seating Constraints</h2>
+            <div id="constraintsContainer">
+                <div class="constraint-pair">
+                    <select id="student1" class="student-select"></select>
+                    <select id="student2" class="student-select"></select>
+                    <button class="remove-constraint">×</button>
+                </div>
+            </div>
+            <button id="addConstraint">Add Constraint</button>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button id="generateSeats">Generate Random Seating</button>
+        <button id="saveLayout">Save Current Layout</button>
+        <button id="loadLayout">Load Saved Layout</button>
+    </div>
+    
+    <div class="classroom-section">
+        <h2>Classroom Layout</h2>
+        <div>
+            <label for="deskCount">Number of Desks:</label>
+            <input type="number" id="deskCount" min="1" value="30">
+        </div>
+        <div id="classroom" class="classroom-layout"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get all elements we need
+            const studentNames = document.getElementById('studentNames');
+            const deskCount = document.getElementById('deskCount');
+            const classroom = document.getElementById('classroom');
+            const generateBtn = document.getElementById('generateSeats');
+            const loadDemoBtn = document.getElementById('loadDemo');
+            const saveBtn = document.getElementById('saveLayout');
+            const loadBtn = document.getElementById('loadLayout');
+            const addConstraintBtn = document.getElementById('addConstraint');
+            const constraintsContainer = document.getElementById('constraintsContainer');
+            
+            // Load demo data when button clicked
+            loadDemoBtn.addEventListener('click', function() {
+                const demoStudents = [
+                    "Emma Johnson", "Liam Smith", "Olivia Williams", "Noah Brown", "Ava Jones",
+                    "William Garcia", "Sophia Miller", "Benjamin Davis", "Isabella Rodriguez", "Mason Martinez",
+                    "Mia Hernandez", "Elijah Lopez", "Charlotte Gonzalez", "James Wilson", "Amelia Anderson",
+                    "Alexander Thomas", "Harper Taylor", "Michael Moore", "Evelyn Jackson", "Daniel Martin"
+                ];
+                studentNames.value = demoStudents.join('\n');
+                updateStudentSelects();
+            });
+            
+            // Generate random seating
+            generateBtn.addEventListener('click', function() {
+                const names = studentNames.value.split('\n').filter(name => name.trim() !== '');
+                const count = parseInt(deskCount.value) || 30;
+                
+                classroom.innerHTML = '';
+                
+                // Shuffle students
+                const shuffled = [...names];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                
+                // Create seats
+                for (let i = 0; i < count; i++) {
+                    const seat = document.createElement('div');
+                    seat.className = 'seat';
+                    seat.textContent = shuffled[i] || 'Empty';
+                    if (!shuffled[i]) {
+                        seat.style.backgroundColor = '#eee';
+                    }
+                    classroom.appendChild(seat);
+                }
+            });
+            
+            // Save and load layout
+            saveBtn.addEventListener('click', function() {
+                const layout = {
+                    html: classroom.innerHTML,
+                    students: studentNames.value,
+                    deskCount: deskCount.value
+                };
+                localStorage.setItem('classroomLayout', JSON.stringify(layout));
+                alert('Layout saved!');
+            });
+            
+            loadBtn.addEventListener('click', function() {
+                const saved = localStorage.getItem('classroomLayout');
+                if (saved) {
+                    const layout = JSON.parse(saved);
+                    classroom.innerHTML = layout.html;
+                    studentNames.value = layout.students;
+                    deskCount.value = layout.deskCount;
+                    alert('Layout loaded!');
+                } else {
+                    alert('No saved layout found');
+                }
+            });
+            
+            // Add constraint
+            addConstraintBtn.addEventListener('click', function() {
+                const pair = document.createElement('div');
+                pair.className = 'constraint-pair';
+                
+                const select1 = document.createElement('select');
+                select1.className = 'student-select';
+                
+                const select2 = document.createElement('select');
+                select2.className = 'student-select';
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-constraint';
+                removeBtn.textContent = '×';
+                removeBtn.addEventListener('click', function() {
+                    constraintsContainer.removeChild(pair);
+                });
+                
+                pair.appendChild(select1);
+                pair.appendChild(select2);
+                pair.appendChild(removeBtn);
+                constraintsContainer.appendChild(pair);
+                
+                updateStudentSelects();
+            });
+            
+            // Update student selects
+            function updateStudentSelects() {
+                const names = studentNames.value.split('\n').filter(name => name.trim() !== '');
+                const selects = document.querySelectorAll('.student-select');
+                
+                selects.forEach(select => {
+                    const current = select.value;
+                    select.innerHTML = '<option value="">Select student</option>';
+                    
+                    names.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        select.appendChild(option);
+                    });
+                    
+                    if (names.includes(current)) {
+                        select.value = current;
+                    }
+                });
+            }
+            
+            // Initialize
+            updateStudentSelects();
+        });
+    </script>
+</body>
+</html>
