@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Seat Planner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1, h2 {
+            color: #2c3e50;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .input-section, .constraints-section, .classroom-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        textarea, input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        button {
+            background-color: #9ACD32;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #7CB342;
+        }
+        
+        .seat {
+            width: 80px;
+            height: 80px;
+            border: 1px solid #ddd;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .seat.girl {
+            background-color: #ffd6e0;
+        }
+        
+        .seat.boy {
+            background-color: #d6e4ff;
+        }
+        
+        .seat:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .classroom-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+        
+        .student-list {
+            margin-top: 10px;
+        }
+        
+        .student-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .gender-toggle {
+            margin-left: 10px;
+            padding: 3px 8px;
+            font-size: 12px;
+        }
+        
+        .background-image {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Classroom Seat Planner</h1>
+    <p>A fair and randomized seating arrangement tool for teachers</p>
+    <img src="pngtree-geometric-green-gold-abstract-brush-background-picture-image_1455476.jpg" alt="Decorative background" class="background-image">
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>Student List</h2>
+            <textarea id="studentNames" rows="5" placeholder="Enter student names, one per line"></textarea>
+            <button id="loadDemo">Load Demo Class</button>
+            <div id="studentList" class="student-list"></div>
+        </div>
+        
+        <div class="classroom-section">
+            <h2>Classroom Layout</h2>
+            <div>
+                <label for="deskCount">Number of Desks:</label>
+                <input type="number" id="deskCount" min="1" value="30">
+            </div>
+            <div class="controls">
+                <button id="generateSeats">Generate Random Seating</button>
+                <button id="separateGenders">Separate Girls & Boys</button>
+                <button id="saveLayout">Save Layout</button>
+                <button id="loadLayout">Load Layout</button>
+            </div>
+            <div id="classroom" class="classroom-layout"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simple classroom seat planner
+        const studentNames = document.getElementById('studentNames');
+        const deskCount = document.getElementById('deskCount');
+        const classroom = document.getElementById('classroom');
+        const studentList = document.getElementById('studentList');
+        
+        // Student data storage
+        let students = [];
+        
+        // Load demo data
+        document.getElementById('loadDemo').addEventListener('click', () => {
+            const demoStudents = ["Emma", "Liam", "Olivia", "Noah", "Ava", "William", "Sophia", "Benjamin"];
+            studentNames.value = demoStudents.join('\n');
+            updateStudentList();
+        });
+        
+        // Update student list with gender options
+        studentNames.addEventListener('input', updateStudentList);
+        
+        function updateStudentList() {
+            studentList.innerHTML = '';
+            students = studentNames.value.split('\n')
+                .filter(name => name.trim())
+                .map(name => ({
+                    name: name.trim(),
+                    gender: 'unknown'
+                }));
+            
+            students.forEach((student, index) => {
+                const div = document.createElement('div');
+                div.className = 'student-item';
+                div.innerHTML = `
+                    ${student.name}
+                    <button class="gender-toggle" data-index="${index}" data-gender="boy">Boy</button>
+                    <button class="gender-toggle" data-index="${index}" data-gender="girl">Girl</button>
+                `;
+                studentList.appendChild(div);
+            });
+            
+            // Add gender toggle events
+            document.querySelectorAll('.gender-toggle').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = this.dataset.index;
+                    const gender = this.dataset.gender;
+                    students[index].gender = gender;
+                    updateStudentList();
+                });
+            });
+        }
+        
+        // Generate random seating
+        document.getElementById('generateSeats').addEventListener('click', generateSeating);
+        
+        function generateSeating() {
+            classroom.innerHTML = '';
+            const count = parseInt(deskCount.value) || 30;
+            const shuffled = [...students].sort(() => Math.random() - 0.5);
+            
+            for (let i = 0; i < count; i++) {
+                const seat = document.createElement('div');
+                seat.className = 'seat';
+                
+                if (shuffled[i]) {
+                    seat.textContent = shuffled[i].name;
+                    if (shuffled[i].gender !== 'unknown') {
+                        seat.classList.add(shuffled[i].gender);
+                    }
+                } else {
+                    seat.textContent = 'Empty';
+                    seat.style.backgroundColor = '#eee';
+                }
+                
+                classroom.appendChild(seat);
+            }
+        }
+        
+        // Separate genders
+        document.getElementById('separateGenders').addEventListener('click', separateGenders);
+        
+        function separateGenders() {
+            const girls = students.filter(s => s.gender === 'girl');
+            const boys = students.filter(s => s.gender === 'boy');
+            const others = students.filter(s => s.gender === 'unknown');
+            
+            // Combine with girls on left, boys on right
+            const separated = [...girls, ...others, ...boys];
+            students = separated;
+            generateSeating();
+        }
+        
+        // Save/load layout
+        document.getElementById('saveLayout').addEventListener('click', () => {
+            localStorage.setItem('classroomLayout', JSON.stringify({
+                students: students,
+                deskCount: deskCount.value,
+                html: classroom.innerHTML
+            }));
+            alert('Layout saved!');
+        });
+        
+        document.getElementById('loadLayout').addEventListener('click', () => {
+            const saved = localStorage.getItem('classroomLayout');
+            if (saved) {
+                const data = JSON.parse(saved);
+                students = data.students;
+                deskCount.value = data.deskCount;
+                classroom.innerHTML = data.html;
+                updateStudentList();
+                alert('Layout loaded!');
+            } else {
+                alert('No saved layout found');
+            }
+        });
+        
+        // Initialize
+        updateStudentList();
+    </script>
+</body>
+</html>
